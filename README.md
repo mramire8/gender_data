@@ -1,2 +1,3 @@
-# gender_data
-collect twitter gender data
+# Gender data
+
+We collect random twitter users and their tweets for gender classification
