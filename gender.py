@@ -12,7 +12,7 @@ class UserGender(object):
         self.top = 1000
         self.load_files()
 
-    def get_names(self, file_name):
+    def get_file_lines(self, file_name):
         import os.path
 
         if not os.path.isfile(file_name):
@@ -21,16 +21,27 @@ class UserGender(object):
         f = open(file_name)
         with f:
             lines = f.readlines()
+        return lines
 
-        fem = [l.strip().split("\t") for l in lines] #discard first lines
+    def get_names(self, lines):
+
+        fem = [l.strip().split() for l in lines] #discard first lines
         names = [name[0] for name in fem[:self.top]]
         return names
 
     def load_files(self):
-        dir_fem = self.file_dir + "/dist.female.first.txt"
-        self.female = self.get_names(dir_fem)
-        dir_mas = self.file_dir + "/dist.male.first.txt"
-        self.male = self.get_names(dir_mas)
+        if self.file_dir is not None:
+            dir_fem = self.file_dir + "/dist.female.first.txt"
+            dir_mas = self.file_dir + "/dist.male.first.txt"
+            females = self.get_file_lines(dir_fem)
+            males = self.get_file_lines(dir_mas)
+        else:
+            import requests
+            males = requests.get('http://www2.census.gov/topics/genealogy/1990surnames/dist.male.first').text.split('\n')
+            females = requests.get('http://www2.census.gov/topics/genealogy/1990surnames/dist.female.first').text.split('\n')
+
+        self.female = self.get_names(females)
+        self.male = self.get_names(males)
 
     def get_female_index(self, name):
         fem = None
@@ -45,7 +56,7 @@ class UserGender(object):
     def get_male_index(self, name):
         mas = None
         try:
-            mas = self.female.index(name)
+            mas = self.male.index(name)
         except ValueError:
             # import sys
             # return sys.maxint
@@ -55,8 +66,8 @@ class UserGender(object):
         return mas
 
     def get_gender(self, name):
-        fem = self.get_female_index(name)
-        mas = self.get_male_index(name)
+        fem = self.get_female_index(name.upper())
+        mas = self.get_male_index(name.upper())
         try:
             if fem is None and mas is None:
                 return None
