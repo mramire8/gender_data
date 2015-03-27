@@ -39,7 +39,7 @@ def get_user_gender():
 def main():
     import gender
     g = gender.UserGender('../../data/names/')
-    print g.get_gender('maria')
+    print g.get_gender('lllll')
 
 
 if __name__ == "__main__":

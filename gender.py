@@ -47,8 +47,9 @@ class UserGender(object):
         try:
             mas = self.female.index(name)
         except ValueError:
-            import sys
-            return sys.maxint
+            # import sys
+            # return sys.maxint
+            return None
         except:
             raise ValueError("We cannot identify this name")
         return mas
