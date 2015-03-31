@@ -76,11 +76,12 @@ def save_tweets(file_name, tweets):
 def extract_users(list_tweets, gender, save=False, file_name=''):
     from collections import Counter
     names = Counter()
+
     users = []
     for tweet in list_tweets:
         uname =get_screen_name(tweet)
         fname = get_first_name(tweet)
-        # names.update(uname)
+        names.update(uname)
         gend = gender.get_gender(fname)
         users.append([uname, fname, gend])
         print uname, fname, gend
@@ -88,7 +89,10 @@ def extract_users(list_tweets, gender, save=False, file_name=''):
     if save:
         f=open(file_name, 'w')
         for user in users:
-            f.write("%s\t%s\t%s\n" % (user[0], user[1], user[2]))
+            if user[0] in names.elements():
+                ## user name, first name, gender
+                f.write("%s\t%s\t%s\n" % (user[0], user[1], user[2]))
+                del names[user[0]]
         f.close()
 
 def get_user_gender():
