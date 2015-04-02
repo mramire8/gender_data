@@ -1,4 +1,5 @@
 __author__ = 'maru'
+import sys
 
 
 class UserGender(object):
@@ -48,7 +49,8 @@ class UserGender(object):
         try:
             fem = self.female.index(name)
         except ValueError:
-            return None
+            return sys.maxint
+            # return None
         except:
             raise ValueError("We cannot identify this name")
         return fem
@@ -58,9 +60,8 @@ class UserGender(object):
         try:
             mas = self.male.index(name)
         except ValueError:
-            # import sys
-            # return sys.maxint
-            return None
+            return sys.maxint
+            # return None
         except:
             raise ValueError("We cannot identify this name")
         return mas
@@ -69,11 +70,11 @@ class UserGender(object):
         fem = self.get_female_index(name.upper())
         mas = self.get_male_index(name.upper())
         try:
-            if fem is None and mas is None:
+            if fem is sys.maxint and mas is sys.maxint:
                 return None
             if fem < mas:
                 return "female"
-            else:
+            elif mas < fem:
                 return "male"
         except ValueError:
             return None

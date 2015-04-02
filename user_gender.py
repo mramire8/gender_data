@@ -3,9 +3,112 @@ import ConfigParser
 from TwitterAPI import TwitterAPI
 import sys
 import json
+import time
 
-def robust_request():
+
+def robust_request(twitter, resource, params, max_tries=5):
+    """ If a Twitter request fails, sleep for 15 minutes.
+    Do this at most max_tries times before quitting.
+    Args:
+      twitter .... A TwitterAPI object.
+      resource ... A resource string to request.
+      params ..... A parameter dictionary for the request.
+      max_tries .. The maximum number of tries to attempt.
+    Returns:
+      A TwitterResponse object, or None if failed.
+    """
+    for i in range(max_tries):
+        request = twitter.request(resource, params)
+        if request.status_code == 200:
+            return request
+        elif request.status_code == 404 or request.status_code == 34 or "Not authorized" in request.text:
+            return None
+        else:
+            print >> sys.stderr, 'Got error:', request.text, '\nsleeping for 15 minutes.'
+            sys.stderr.flush()
+            time.sleep(60 * 15)
+
+
+def get_user_timeline(user_id, twitter):
+    """ Return Twitter screen names for all accounts followed by screen_name. Returns the first 200 users.
+    See docs at: https://dev.twitter.com/docs/api/1.1/get/friends/list
+    Args:
+      user_id ... The query account.
+      twitter ....... The TwitterAPI object.
+    Returns:
+      A list of Twitter screen names.
+    """
+
+    parameters = {'screen_name': user_id, 'count': 200, 'contributor_details': True}
+    # get list of friends aka following accounts.
+
+
+    timeline = []
+
+    finished = False
+    max_id = 0
+    since = 0
+    empty = False
+    request = None
+
+    while not empty: ## the 3200 limits returns a valid request with an empty iterator
+        ids = []
+        request = robust_request(twitter, 'statuses/user_timeline',
+                                 parameters, max_tries=5)
+
+        if validate_request(request):  # if I didnt get an error
+            empty = True
+            ids = []
+            for r in request.get_iterator(): # get all tweets
+                empty = False
+                if 'user' in r:
+                    timeline.append(r)
+                    ids.append(r['id'])
+            if len(ids) > 0:  ##  save ids
+                # since = max(since, max(ids))
+                # max_id = min(ids) - 1
+                since = ids[-1]
+                max_id = ids[0]
+        parameters['since_id'] = since
+        parameters['max_id'] = max_id
+
+    return timeline
+
+
+def get_all_timeline():
     pass
+
+
+def collect_timeline(user, gender, twitter, output):
+
+    import os
+    timeline = get_user_timeline(user, twitter)
+
+    output_name = output + "/" + gender + "/" + user + ".txt"
+    if not os.path.exists(output_name):
+        os.makedirs(output + "/" + gender + "/")
+
+    f = open(output_name, 'w')
+    for t in timeline:
+        s = "%s\n" % json.dumps(t)
+        f.write(s)
+    f.close()
+
+
+def create_dataset(users, twitter, output_dir):
+
+    for i, user in enumerate(users):
+        print "user: %s" % i
+        collect_timeline(user[0], user[2], twitter)
+
+
+def validate_request(request):
+    if request is None:
+        return False
+    elif 'errors' in request:
+        return False
+    else:
+        return True
 
 
 def connect(config):
@@ -38,7 +141,7 @@ def get_first_name(tweet):
 
 def get_screen_name(tweet):
     if 'user' in tweet and 'name' in tweet['user']:
-        parts = tweet['user']['scree_name']
+        parts = tweet['user']['screen_name']
         return parts
 
 
@@ -81,7 +184,7 @@ def extract_users(list_tweets, gender, save=False, file_name=''):
     for tweet in list_tweets:
         uname =get_screen_name(tweet)
         fname = get_first_name(tweet)
-        names.update(uname)
+        names.update([uname])
         gend = gender.get_gender(fname)
         users.append([uname, fname, gend])
         print uname, fname, gend
@@ -95,17 +198,30 @@ def extract_users(list_tweets, gender, save=False, file_name=''):
                 del names[user[0]]
         f.close()
 
-def get_user_gender():
-    # get config
-    # get connection
-    # Get genders
-    # while limit
-        # get random tweets
-        # get users
-        # get genders
-        # save users
+    return users
 
-    pass
+
+def load_tweet_file(file_name):
+    import json
+    f = open(file_name)
+    with f:
+        lines = f.readlines()
+
+    tweets = []
+    for line in lines:
+        tweets.append(json.loads(line))
+    return tweets
+
+
+def load_users_file(file_name):
+    f = open(file_name)
+    with f:
+        lines = f.readlines()
+
+    users = [l.split("\t") for l in lines]
+
+    return users
+
 
 def main():
     import gender
@@ -115,9 +231,15 @@ def main():
 
     twitter = get_twitter('../twitter.cfg')
 
-    tweets = sample_tweets(twitter, 5000, gender, save=True, file_name='gender_tweets.txt')
+    # tweets = sample_tweets(twitter, 5000, gender, save=True, file_name='gender_tweets.txt')
+    tweets = load_tweet_file('gender_tweets.txt')
 
-    extract_users(tweets, gender, save=True, file_name='gender_users.txt')
+    # users = extract_users(tweets, gender, save=True, file_name='gender_users.txt')
+    users = load_users_file('gender_users.txt')
+
+    # create_dataset(users, tweets, "./data")
+
+    tm = get_user_timeline('jessstumpf', twitter)
 
 if __name__ == "__main__":
     main()
